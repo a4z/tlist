@@ -17,16 +17,21 @@ struct typelist
   }
 
   template <typename T>
-  using contains = std::disjunction<std::is_same<T, Types>...>;
+  using contains = std::integral_constant<bool, includes(T{})>;
 
-  template <typename... T>
-  using contains_list = std::conjunction<contains<T>...>;
-
-  template <typename... T>
-  static constexpr bool test(typelist<T...>)
+  static constexpr bool unique()
   {
-    return std::conjunction<contains <T>...>::value ;
+    auto l = [](auto head, auto... tail)
+    {
+      if constexpr (sizeof... (tail) == 0)
+        return true ;
+      else
+        return not typelist<decltype(tail)...>::includes (head) &&
+               typelist<decltype(tail)...>::unique () ;
+    };
+    return l(Types{}...) ;
   }
+
 
 };
 
@@ -45,7 +50,14 @@ int main()
 
 
   static_assert(t1::contains<int>::value);
-  //static_assert(t3::contains_list<t2>::value);
-  static_assert(t3::test(t2{})); // why this, but not the line above?
+  static_assert(t3::contains<t2>::value);
+  static_assert(not t3::contains<float>::value);
+  static_assert(not t2::contains<t3>::value);
 
+  static_assert(typelist<int, double>::unique ());
+  static_assert(not typelist<int, double, int>::unique ());
+  static_assert(typelist<char, double, int>::unique ());
+  static_assert(not typelist<char, char, double, int>::unique ());
+  static_assert(typelist<char, float, double, int>::unique ());
+  static_assert(not typelist<char, float, char, int>::unique ());
 }
